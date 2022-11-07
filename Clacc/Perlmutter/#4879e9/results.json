@@ -1,1 +1,75 @@
-//empty json file for the script
+var jsonResults = {
+    "configs": [
+        {
+            "CC": "",
+            "CCFlags": [
+                "-fopenacc",
+                "-fopenmp-targets=nvptx64-nvidia-cuda",
+                "-lm"
+            ],
+            "CC_ACC_Version": null,
+            "CPP": "",
+            "CPPFlags": [
+                "-fopenacc",
+                "-fopenmp-targets=nvptx64-nvidia-cuda",
+                "-lm"
+            ],
+            "CPP_ACC_Version": null,
+            "FC": "",
+            "FCFlags": [],
+            "FC_ACC_Version": null,
+            "PostCompileCommands": [],
+            "PostRunCommands": [],
+            "PreCompileCommands": [],
+            "PreRunCommands": [],
+            "build_dir": "/global/u1/v/vaidhy/OpenACCV-V/build",
+            "config_id": -1,
+            "config_name": "init_config.txt",
+            "env": null,
+            "exclude_tags": [],
+            "exclude_tests": [
+                "acc_testsuite.Fh",
+                "acc_testsuite.h",
+                "acc_testsuite_declare.h"
+            ],
+            "export_format": "json",
+            "fast": false,
+            "id": 1,
+            "include_by_default": true,
+            "include_tags": [],
+            "include_tests": [],
+            "keep_build_dir": false,
+            "keep_mutated_tests": false,
+            "keep_partial_results": false,
+            "keep_policy": "on-error",
+            "mutated_test_dir": "/global/u1/v/vaidhy/OpenACCV-V/build/mutated_tests",
+            "mutators": [],
+            "partial": false,
+            "partial_results_dir": "/global/u1/v/vaidhy/OpenACCV-V/build/partial_results",
+            "runtime_prefix": "",
+            "seed": null,
+            "system_name": null,
+            "tag_evaluation": null,
+            "test_dir": "/global/u1/v/vaidhy/OpenACCV-V/Tests",
+            "timeout": 10
+        }
+    ],
+    "runs": {},
+    "summary": {},
+    "systems": [
+        {
+            "id": 1,
+            "machine": "x86_64",
+            "name": null,
+            "node": "login23",
+            "processor": "x86_64",
+            "release": "5.3.18-150300.59.87_11.0.78-cray_shasta_c",
+            "version": "#1 SMP Thu Oct 20 22:11:23 UTC 2022 (c16132b)"
+        }
+    ],
+    "testsuites": [
+        {
+            "id": 1
+        }
+    ]
+}
