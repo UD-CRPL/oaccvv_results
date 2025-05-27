@@ -1,5 +1,3 @@
-var jsonResults = 
-{
     "configs": [
         {
             "CC": "gcc",
