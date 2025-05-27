@@ -1,4 +1,5 @@
-    "configs": [
+   {
+     "configs": [
         {
             "CC": "gcc",
             "CCFlags": [
