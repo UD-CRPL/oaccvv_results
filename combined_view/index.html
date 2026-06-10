@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenACC V&amp;V — Combined Results</title>
+<style>
+  :root{
+    --P:#1e9e57; --C:#d83a3a; --R:#e8820c; --E:#b23b1e; --U:#7b61c9; --X:#aab4bf; --dot:#eef1f4;
+    --ink:#1b2733; --line:#dfe5eb; --head:#0b3d62;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#f6f8fa}
+  header{background:var(--head);color:#fff;padding:16px 22px}
+  header h1{margin:0;font-size:19px}
+  header .sub{opacity:.85;font-size:12.5px;margin-top:4px}
+  .controls{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--line);
+    padding:10px 16px;display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+  .controls input[type=search]{padding:7px 10px;border:1px solid #c6d0d9;border-radius:6px;min-width:240px;font-size:14px}
+  .controls label{font-size:13px;display:inline-flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap}
+  .vendors{display:inline-flex;gap:10px;flex-wrap:wrap;padding-left:6px;border-left:1px solid var(--line)}
+  .legend{display:inline-flex;gap:10px;flex-wrap:wrap;margin-left:auto;font-size:12px}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .sw{width:13px;height:13px;border-radius:3px;display:inline-block}
+  .count{font-size:12.5px;color:#5b6b7b}
+  .wrap{overflow:auto;max-height:calc(100vh - 132px)}
+  table{border-collapse:separate;border-spacing:0;font-size:11px}
+  thead th{position:sticky;top:0;z-index:20;background:#eef3f7}
+  th.test,td.test{position:sticky;left:0;z-index:10;background:#fff;text-align:left;
+    min-width:300px;max-width:300px;padding:3px 8px;border-right:2px solid var(--line);
+    border-bottom:1px solid #eef1f4;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  thead th.test{z-index:25;background:#eef3f7;vertical-align:bottom}
+  th.grp{font-size:12px;border-bottom:1px solid var(--line);border-left:2px solid #fff;color:#fff;padding:4px 6px}
+  th.run{height:128px;padding:0;border-left:1px solid #e7ecf1;background:#eef3f7}
+  th.run .rot{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;padding:6px 2px;font-weight:600}
+  th.run .pct{display:block;writing-mode:horizontal-tb;font-weight:700;font-size:10px;text-align:center;padding:2px 0;color:#33475b}
+  td.c{width:22px;min-width:22px;max-width:22px;text-align:center;color:#fff;font-weight:700;
+    border-left:1px solid rgba(255,255,255,.5);border-bottom:1px solid #eef1f4;cursor:default}
+  .c-P{background:var(--P)} .c-C{background:var(--C)} .c-R{background:var(--R)}
+  .c-E{background:var(--E)} .c-U{background:var(--U)} .c-X{background:var(--X);color:#3b4754}
+  .c-dot{background:var(--dot);color:transparent}
+  tbody tr:hover td.test{background:#fff7e0}
+  #tip{position:fixed;z-index:99;background:#1b2733;color:#fff;padding:6px 9px;border-radius:6px;
+    font-size:12px;pointer-events:none;display:none;box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:320px}
+  #empty{padding:30px;color:#7a8794;display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>OpenACC Validation &amp; Verification — Combined Results</h1>
+  <div class="sub" id="sub">loading…</div>
+</header>
+
+<div class="controls">
+  <input type="search" id="q" placeholder="Filter tests by name…" autocomplete="off">
+  <label><input type="checkbox" id="failonly"> Failures only</label>
+  <span class="vendors" id="vendors"></span>
+  <span class="count" id="count"></span>
+  <span class="legend" id="legend"></span>
+</div>
+
+<div class="wrap"><table id="tbl"><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
+<div id="empty">No tests match the current filters.</div>
+<div id="tip"></div>
+
+<script>
+const FAIL = new Set(['C','R','E','U']);                 // counts as a failure for "failures only"
+fetch('combined.json').then(r=>r.json()).then(init).catch(e=>{
+  document.getElementById('sub').textContent='Failed to load combined.json: '+e;
+});
+
+let DATA, runs, tests;
+function init(d){
+  DATA=d; runs=d.runs; tests=d.tests;
+  const vendors=[...new Set(runs.map(r=>r.vendor))];
+  const totPass=runs.reduce((a,r)=>a+r.pass,0), totCells=runs.reduce((a,r)=>a+r.total,0);
+  document.getElementById('sub').textContent =
+    `${tests.length} tests × ${runs.length} compiler/version runs across ${vendors.length} compilers · `+
+    `${totPass.toLocaleString()} / ${totCells.toLocaleString()} segments passing · static, generated from ${d.generated_from}`;
+
+  // legend
+  document.getElementById('legend').innerHTML = Object.entries(d.legend).filter(([k])=>k!=='.')
+    .map(([k,v])=>`<span><i class="sw c-${k}"></i>${v}</span>`).join('');
+  // vendor toggles
+  document.getElementById('vendors').innerHTML = vendors.map(v=>
+    `<label><input type="checkbox" class="vtog" value="${v}" checked> ${v}</label>`).join('');
+
+  buildHead(vendors); buildBody();
+  document.getElementById('q').addEventListener('input', applyFilters);
+  document.getElementById('failonly').addEventListener('change', applyFilters);
+  document.querySelectorAll('.vtog').forEach(c=>c.addEventListener('change', toggleVendors));
+  applyFilters();
+}
+
+function buildHead(vendors){
+  // group row
+  let g='<tr><th class="test" rowspan="2">Test</th>';
+  const colorOf={Clacc:'#5b7fb0',Cray:'#7a59a8',GCC:'#2f8f6b',nvc:'#c2722e'};
+  vendors.forEach(v=>{
+    const n=runs.filter(r=>r.vendor===v).length;
+    g+=`<th class="grp v-${v}" colspan="${n}" style="background:${colorOf[v]||'#52606d'}">${v} · ${n}</th>`;
+  });
+  g+='</tr><tr>';
+  runs.forEach((r,i)=>{
+    const pct=r.total?Math.round(100*r.pass/r.total):0;
+    g+=`<th class="run v-${r.vendor}" data-i="${i}"><span class="pct">${pct}%</span><span class="rot">${esc(r.label)}</span></th>`;
+  });
+  g+='</tr>';
+  document.getElementById('thead').innerHTML=g;
+}
+
+function buildBody(){
+  const rows=new Array(tests.length);
+  for(let t=0;t<tests.length;t++){
+    let row=`<tr data-t="${t}"><td class="test" title="${esc(tests[t])}">${esc(tests[t])}</td>`;
+    for(let i=0;i<runs.length;i++){
+      const c=runs[i].cells[t];
+      row += c==='.' ? `<td class="c c-dot v-${runs[i].vendor}"></td>`
+                     : `<td class="c c-${c} v-${runs[i].vendor}">${c}</td>`;
+    }
+    rows[t]=row+'</tr>';
+  }
+  document.getElementById('tbody').innerHTML=rows.join('');
+
+  // tooltip (delegated)
+  const tip=document.getElementById('tip'), tb=document.getElementById('tbody');
+  tb.addEventListener('mousemove',e=>{
+    const td=e.target.closest('td.c'); if(!td){tip.style.display='none';return;}
+    const i=td.cellIndex-1, t=+td.parentNode.dataset.t, code=runs[i].cells[t];
+    tip.innerHTML=`<b>${esc(tests[t])}</b><br>${esc(runs[i].vendor)} · ${esc(runs[i].label)}<br>${DATA.legend[code]}`;
+    tip.style.display='block'; tip.style.left=Math.min(e.clientX+14,innerWidth-330)+'px'; tip.style.top=(e.clientY+16)+'px';
+  });
+  tb.addEventListener('mouseleave',()=>tip.style.display='none');
+}
+
+function toggleVendors(){
+  const hidden=[...document.querySelectorAll('.vtog')].filter(c=>!c.checked).map(c=>c.value);
+  let css='';
+  hidden.forEach(v=>css+=`.v-${v}{display:none}`);
+  let st=document.getElementById('vcss'); if(!st){st=document.createElement('style');st.id='vcss';document.head.appendChild(st);}
+  st.textContent=css;
+  applyFilters();
+}
+
+function applyFilters(){
+  const q=document.getElementById('q').value.trim().toLowerCase();
+  const failonly=document.getElementById('failonly').checked;
+  const vis=new Set([...document.querySelectorAll('.vtog')].filter(c=>c.checked).map(c=>c.value));
+  const visIdx=runs.map((r,i)=>vis.has(r.vendor)?i:-1).filter(i=>i>=0);
+  let shown=0;
+  const trs=document.getElementById('tbody').children;
+  for(let t=0;t<tests.length;t++){
+    let ok = !q || tests[t].toLowerCase().includes(q);
+    if(ok && failonly){
+      ok=false; for(const i of visIdx){ if(FAIL.has(runs[i].cells[t])){ok=true;break;} }
+    }
+    trs[t].style.display = ok?'':'none'; if(ok) shown++;
+  }
+  document.getElementById('count').textContent=`${shown} / ${tests.length} tests shown`;
+  document.getElementById('empty').style.display = shown?'none':'block';
+}
+
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+</script>
+</body>
+</html>
