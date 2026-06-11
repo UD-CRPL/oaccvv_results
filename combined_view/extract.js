@@ -12,6 +12,8 @@ const OUT = process.env.OUT || path.resolve(__dirname, 'out');
 const VENDORS = ['Clacc', 'Cray', 'GCC', 'nvc'];
 
 const CODE = { 'Pass': 'P', 'Compilation Failure': 'C', 'Runtime Failure': 'R', 'Runtime Error': 'E', 'Excluded From Run': 'X', 'Unknown Section Result': 'U' };
+const DROP = new Set(['template.F90']);                       // the suite's test template, compiled by mistake in old runs — not a real test
+const RENAME = { 'gang-dimensions.c': 'gang_dimensions.c' };  // renamed upstream in OpenACCV-V Tests/; merge old runs under the new name
 const SEV  = { P: 0, X: 1, U: 2, R: 3, E: 4, C: 5 };
 const LEGEND = { P: 'Pass', C: 'Compilation Failure', R: 'Runtime Failure', E: 'Runtime Error', X: 'Excluded From Run', U: 'Unknown Section Result', '.': 'Not in this run' };
 const CAP = 4000;
@@ -42,7 +44,11 @@ for (const rel of files) {
 
   const segs = []; if (j.summary) collectSegments(j.summary, [], segs);
   const byTest = {};
-  for (const s of segs) (byTest[s.test] = byTest[s.test] || []).push(s);
+  for (const s of segs) {
+    const t = RENAME[s.test] || s.test;
+    if (DROP.has(t)) continue;
+    (byTest[t] = byTest[t] || []).push(s);
+  }
   const status = {}, details = {};
   for (const t of Object.keys(byTest)) {
     allTests.add(t);
@@ -52,7 +58,7 @@ for (const rel of files) {
     status[t] = st;
     if (st !== 'P' && st !== 'X') {                          // capture failure reason
       const seg = byTest[t].find(s => s.code !== 'P' && s.code !== 'X') || byTest[t][0];
-      const run = j.runs && j.runs[t] && j.runs[t][seg.ri] || {};
+      const run = j.runs && j.runs[seg.test] && j.runs[seg.test][seg.ri] || {};
       const comp = run.compilation || {}, rt = run.runtime || {};
       details[t] = { status: LEGEND[st], command: trunc(comp.command), errors: trunc(comp.errors || rt.errors), output: trunc(comp.output || rt.output) };
     }
